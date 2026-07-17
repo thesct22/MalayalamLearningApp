@@ -1,30 +1,37 @@
 package com.antigravity.malayalam.ui.draw;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.SpeechRecognizer;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import com.antigravity.malayalam.MainActivity;
 import com.antigravity.malayalam.databinding.FragmentDrawBinding;
-import com.antigravity.malayalam.utils.TtsHelper;
+import com.antigravity.malayalam.service.AudioService;
+import java.util.ArrayList;
 
 /**
  * Tracing practice Fragment. Connects with DrawingCanvasView.
  */
 public class DrawFragment extends Fragment {
 
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private static final String ARG_LETTER = "arg_letter";
     private static final String ARG_MEANING = "arg_meaning";
     private static final String ARG_PHONETIC = "arg_phonetic";
 
     private FragmentDrawBinding binding;
     private DrawViewModel viewModel;
-    private TtsHelper ttsHelper;
+    private AudioService audioService;
 
     private String targetLetter = "അ";
     private String targetMeaning = "Letter 'A'";
@@ -61,7 +68,7 @@ public class DrawFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(DrawViewModel.class);
-        ttsHelper = new TtsHelper(requireContext());
+        audioService = new AudioService(requireContext());
 
         setupUI();
         setupListeners();
@@ -113,10 +120,74 @@ public class DrawFragment extends Fragment {
         });
 
         binding.btnSpeakLetter.setOnClickListener(v -> {
-            if (ttsHelper != null) {
-                ttsHelper.speak(targetLetter);
+            if (audioService != null) {
+                audioService.speak(targetLetter);
             }
         });
+
+        binding.btnRecordSpeech.setOnClickListener(v -> {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+                return;
+            }
+            startSpeechRecognition();
+        });
+    }
+
+    private void startSpeechRecognition() {
+        Toast.makeText(requireContext(), "Listening...", Toast.LENGTH_SHORT).show();
+        audioService.startListening(new RecognitionListener() {
+            @Override
+            public void onReadyForSpeech(Bundle params) {}
+
+            @Override
+            public void onBeginningOfSpeech() {}
+
+            @Override
+            public void onRmsChanged(float rmsdB) {}
+
+            @Override
+            public void onBufferReceived(byte[] buffer) {}
+
+            @Override
+            public void onEndOfSpeech() {}
+
+            @Override
+            public void onError(int error) {
+                Toast.makeText(requireContext(), "Error recognizing speech: " + error, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onResults(Bundle results) {
+                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches != null && !matches.isEmpty()) {
+                    String result = matches.get(0);
+                    if (result.contains(targetLetter)) {
+                        Toast.makeText(requireContext(), "Correct!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(requireContext(), "You said: " + result, Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+
+            @Override
+            public void onPartialResults(Bundle partialResults) {}
+
+            @Override
+            public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startSpeechRecognition();
+            } else {
+                Toast.makeText(requireContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void showSuccessFeedback() {
@@ -127,9 +198,9 @@ public class DrawFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (ttsHelper != null) {
-            ttsHelper.shutdown();
-            ttsHelper = null;
+        if (audioService != null) {
+            audioService.shutdown();
+            audioService = null;
         }
         binding = null;
     }
