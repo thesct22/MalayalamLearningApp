@@ -11,6 +11,7 @@ public class DrawingCanvasViewModelTest {
         vm.addPoint(10f, 10f);
         assertFalse(vm.getPoints().isEmpty());
         vm.clear();
+        assertTrue(vm.getPoints().isEmpty());
     }
 
     @Test
