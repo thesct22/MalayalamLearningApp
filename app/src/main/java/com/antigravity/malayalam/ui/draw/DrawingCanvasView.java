@@ -11,40 +11,35 @@ import android.view.MotionEvent;
 import android.view.View;
 import androidx.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Custom View class for drawing/tracing Malayalam letters.
+ * Custom View class for drawing/tracing Malayalam letters using dynamic font templates.
  */
 public class DrawingCanvasView extends View {
 
     private DrawingCanvasViewModel viewModel = new DrawingCanvasViewModel();
 
-
-
     private Path drawPath;
     private Paint drawPaint;
-    private Paint backgroundLetterPaint;
-    private Paint guidePointPaint;
-    private Paint guideLinePaint;
+    private Paint templatePaint;
+    private Paint templateStrokePaint;
 
     private String currentLetter = "അ";
-    private final List<PointF> normalizedGuides = new ArrayList<>();
-    private final List<PointF> scaledGuides = new ArrayList<>();
-    private int nextGuideIndex = 0;
-    private final float touchTolerance = 60f; // pixels distance threshold
+    private float[][][] currentTemplate = null;
+    private Path templatePath = new Path();
+    private final List<PointF> scaledGuidePoints = new ArrayList<>();
+    
+    private float touchTolerance = 60f; // pixels distance threshold
 
     private DrawingListener listener;
+    private boolean tracingSuccessful = false;
 
     public interface DrawingListener {
         void onTracingProgress(int visitedPoints, int totalPoints);
         void onTracingCompleted();
         void onTracingFailed();
     }
-
-
 
     public DrawingCanvasView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -57,27 +52,21 @@ public class DrawingCanvasView extends View {
         drawPaint = new Paint();
         drawPaint.setColor(Color.parseColor("#6200EE")); // Deep Purple
         drawPaint.setAntiAlias(true);
-        drawPaint.setStrokeWidth(16f);
+        drawPaint.setStrokeWidth(24f); // Thicker stroke for handwriting
         drawPaint.setStyle(Paint.Style.STROKE);
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        backgroundLetterPaint = new Paint();
-        backgroundLetterPaint.setColor(Color.parseColor("#E0E0E0")); // Light Grey for template
-        backgroundLetterPaint.setTextSize(400f);
-        backgroundLetterPaint.setTextAlign(Paint.Align.CENTER);
-        backgroundLetterPaint.setAntiAlias(true);
-        backgroundLetterPaint.setStyle(Paint.Style.FILL);
+        templatePaint = new Paint();
+        templatePaint.setColor(Color.parseColor("#E0E0E0")); // Light Grey fill
+        templatePaint.setAntiAlias(true);
+        templatePaint.setStyle(Paint.Style.FILL);
 
-        guidePointPaint = new Paint();
-        guidePointPaint.setAntiAlias(true);
-        guidePointPaint.setStyle(Paint.Style.FILL);
-
-        guideLinePaint = new Paint();
-        guideLinePaint.setColor(Color.parseColor("#8003DAC5")); // Semi-transparent teal
-        guideLinePaint.setStrokeWidth(6f);
-        guideLinePaint.setStyle(Paint.Style.STROKE);
-        guideLinePaint.setAntiAlias(true);
+        templateStrokePaint = new Paint();
+        templateStrokePaint.setColor(Color.parseColor("#BDBDBD")); // Slightly darker grey outline
+        templateStrokePaint.setStrokeWidth(3f);
+        templateStrokePaint.setStyle(Paint.Style.STROKE);
+        templateStrokePaint.setAntiAlias(true);
 
         loadLetterTemplate(currentLetter);
     }
@@ -97,83 +86,64 @@ public class DrawingCanvasView extends View {
     }
 
     private void loadLetterTemplate(String letter) {
-        normalizedGuides.clear();
-        float[][] coords = LetterTemplates.getTemplate(letter);
-        if (coords != null) {
-            for (float[] coord : coords) {
-                normalizedGuides.add(new PointF(coord[0], coord[1]));
-            }
-        } else {
-            // Default template if letter not found: circular path
-            for (int i = 0; i < 8; i++) {
-                double angle = i * Math.PI / 4;
-                float x = (float) (0.5 + 0.3 * Math.cos(angle));
-                float y = (float) (0.5 + 0.3 * Math.sin(angle));
-                normalizedGuides.add(new PointF(x, y));
-            }
-        }
-        nextGuideIndex = 0;
+        currentTemplate = LetterTemplates.getTemplate(letter);
         updateScaledGuides();
         clearCanvas();
     }
 
     private void updateScaledGuides() {
-        scaledGuides.clear();
+        scaledGuidePoints.clear();
+        templatePath.reset();
+        
         int width = getWidth();
         int height = getHeight();
-        if (width > 0 && height > 0) {
-            for (PointF norm : normalizedGuides) {
-                scaledGuides.add(new PointF(norm.x * width, norm.y * height));
+        
+        if (width <= 0 || height <= 0 || currentTemplate == null) {
+            return;
+        }
+
+        // Adjust for drawing within the view, preserving aspect ratio
+        float scale = Math.min(width, height);
+        float offsetX = (width - scale) / 2f;
+        float offsetY = (height - scale) / 2f;
+        
+        touchTolerance = scale * 0.08f; // Dynamic tolerance based on view size
+
+        for (float[][] contour : currentTemplate) {
+            if (contour == null || contour.length == 0) continue;
+
+            float startX = offsetX + contour[0][0] * scale;
+            float startY = offsetY + contour[0][1] * scale;
+            
+            templatePath.moveTo(startX, startY);
+            scaledGuidePoints.add(new PointF(startX, startY));
+
+            for (int i = 1; i < contour.length; i++) {
+                float px = offsetX + contour[i][0] * scale;
+                float py = offsetY + contour[i][1] * scale;
+                templatePath.lineTo(px, py);
+                scaledGuidePoints.add(new PointF(px, py));
             }
+            templatePath.close();
         }
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        backgroundLetterPaint.setTextSize(Math.min(w, h) * 0.7f);
         updateScaledGuides();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        
+        // Draw the extracted glyph as a bubble shape
+        canvas.drawPath(templatePath, templatePaint);
+        canvas.drawPath(templatePath, templateStrokePaint);
 
-        int centerX = getWidth() / 2;
-        // Adjust baseline so character fits in middle
-        int centerY = (int) ((getHeight() / 2) - ((backgroundLetterPaint.descent() + backgroundLetterPaint.ascent()) / 2));
-        canvas.drawText(currentLetter, centerX, centerY, backgroundLetterPaint);
-
-        // Draw connections between guide points
-        if (scaledGuides.size() > 1) {
-            for (int i = 0; i < scaledGuides.size() - 1; i++) {
-                PointF p1 = scaledGuides.get(i);
-                PointF p2 = scaledGuides.get(i + 1);
-                // Highlight completed segments
-                if (i < nextGuideIndex - 1) {
-                    guideLinePaint.setColor(Color.parseColor("#FF03DAC5")); // Solid teal
-                } else {
-                    guideLinePaint.setColor(Color.parseColor("#30000000")); // Faint solid line
-                }
-                canvas.drawLine(p1.x, p1.y, p2.x, p2.y, guideLinePaint);
-            }
-        }
-
-        // Draw current user strokes
+        // Draw user's stroke
         canvas.drawPath(drawPath, drawPaint);
-
-        // Draw guide points
-        for (int i = 0; i < scaledGuides.size(); i++) {
-            PointF pt = scaledGuides.get(i);
-            if (i < nextGuideIndex) {
-                guidePointPaint.setColor(Color.parseColor("#4CAF50")); // Green: Visited
-            } else if (i == nextGuideIndex) {
-                guidePointPaint.setColor(Color.parseColor("#FF9800")); // Orange: Current Target
-            } else {
-                guidePointPaint.setColor(Color.parseColor("#757575")); // Grey: Unvisited
-            }
-            canvas.drawCircle(pt.x, pt.y, i == nextGuideIndex ? 22f : 16f, guidePointPaint);
-        }
     }
 
     @Override
@@ -185,15 +155,14 @@ public class DrawingCanvasView extends View {
             case MotionEvent.ACTION_DOWN:
                 if (viewModel != null) viewModel.addPoint(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
-                checkTouchPoint(touchX, touchY);
+                tracingSuccessful = false;
                 break;
             case MotionEvent.ACTION_MOVE:
                 if (viewModel != null) viewModel.addPoint(touchX, touchY);
                 drawPath.lineTo(touchX, touchY);
-                checkTouchPoint(touchX, touchY);
                 break;
             case MotionEvent.ACTION_UP:
-                // Check final status on release
+                evaluateTrace();
                 break;
             default:
                 return false;
@@ -203,26 +172,56 @@ public class DrawingCanvasView extends View {
         return true;
     }
 
-    private void checkTouchPoint(float x, float y) {
-        if (nextGuideIndex >= scaledGuides.size()) return;
+    private void evaluateTrace() {
+        if (viewModel == null || scaledGuidePoints.isEmpty()) return;
+        List<PointF> userPoints = viewModel.getPoints();
+        if (userPoints.size() < 10) return; // Too short
 
-        PointF target = scaledGuides.get(nextGuideIndex);
-        double dist = Math.hypot(x - target.x, y - target.y);
-
-        if (dist <= touchTolerance) {
-            nextGuideIndex++;
-            if (listener != null) {
-                listener.onTracingProgress(nextGuideIndex, scaledGuides.size());
-                if (nextGuideIndex == scaledGuides.size()) {
-                    listener.onTracingCompleted();
+        // 1. Accuracy: what % of user points are inside/near the template?
+        int accuratePoints = 0;
+        for (PointF up : userPoints) {
+            boolean isNear = false;
+            for (PointF gp : scaledGuidePoints) {
+                if (Math.hypot(up.x - gp.x, up.y - gp.y) <= touchTolerance) {
+                    isNear = true;
+                    break;
                 }
+            }
+            if (isNear) accuratePoints++;
+        }
+        float accuracy = (float) accuratePoints / userPoints.size();
+
+        // 2. Coverage: what % of the template points were touched?
+        int coveredGuides = 0;
+        for (PointF gp : scaledGuidePoints) {
+            boolean isCovered = false;
+            for (PointF up : userPoints) {
+                if (Math.hypot(up.x - gp.x, up.y - gp.y) <= touchTolerance) {
+                    isCovered = true;
+                    break;
+                }
+            }
+            if (isCovered) coveredGuides++;
+        }
+        float coverage = (float) coveredGuides / scaledGuidePoints.size();
+
+        float finalScore = (accuracy * 0.65f) + (coverage * 0.35f);
+        
+        // Let's say a score of > 0.65 is a pass
+        tracingSuccessful = finalScore >= 0.65f;
+
+        if (listener != null) {
+            if (tracingSuccessful) {
+                listener.onTracingCompleted();
+            } else {
+                listener.onTracingFailed();
             }
         }
     }
 
     public void clearCanvas() {
         drawPath.reset();
-        nextGuideIndex = 0;
+        tracingSuccessful = false;
         if (viewModel != null) {
             viewModel.clear();
         }
@@ -230,6 +229,6 @@ public class DrawingCanvasView extends View {
     }
 
     public boolean isTracingSuccessful() {
-        return nextGuideIndex >= scaledGuides.size();
+        return tracingSuccessful;
     }
 }
