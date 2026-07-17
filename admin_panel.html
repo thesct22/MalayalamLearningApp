@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malayalam Tracing Node Admin Panel</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #canvas-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            border: 2px solid #ddd;
+            background: white;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 400px;
+        }
+        input, button, textarea {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background: #6200EE;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #3700b3;
+        }
+        textarea {
+            height: 200px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="panel">
+        <div id="canvas-container">
+            <canvas id="textCanvas" width="500" height="500"></canvas>
+            <canvas id="nodeCanvas" width="500" height="500"></canvas>
+        </div>
+    </div>
+
+    <div class="panel controls">
+        <h2>Tracing Admin Panel</h2>
+        <div class="instructions">
+            1. Enter a Malayalam letter and click <b>Render</b>.<br>
+            2. Click along the path of the letter on the canvas to place guide nodes.<br>
+            3. The Java coordinate code will be generated below automatically.<br>
+            4. Copy and paste it into <code>TEMPLATES</code> in <code>DrawingCanvasView.java</code>.
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="letterInput" value="അ" style="flex: 1; text-align: center; font-size: 24px;">
+            <button onclick="renderLetter()">Render</button>
+            <button onclick="clearNodes()" style="background: #dc3545;">Clear Nodes</button>
+        </div>
+
+        <h3>Generated Java Array</h3>
+        <textarea id="output" readonly></textarea>
+    </div>
+
+    <script>
+        const textCanvas = document.getElementById('textCanvas');
+        const textCtx = textCanvas.getContext('2d');
+        const nodeCanvas = document.getElementById('nodeCanvas');
+        const nodeCtx = nodeCanvas.getContext('2d');
+        const output = document.getElementById('output');
+        const letterInput = document.getElementById('letterInput');
+
+        const CANVAS_SIZE = 500;
+        let nodes = [];
+
+        function renderLetter() {
+            const letter = letterInput.value;
+            textCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            // Draw background grid for reference
+            textCtx.strokeStyle = '#f0f0f0';
+            textCtx.lineWidth = 1;
+            for(let i=0; i<=CANVAS_SIZE; i+=50) {
+                textCtx.beginPath(); textCtx.moveTo(i, 0); textCtx.lineTo(i, CANVAS_SIZE); textCtx.stroke();
+                textCtx.beginPath(); textCtx.moveTo(0, i); textCtx.lineTo(CANVAS_SIZE, i); textCtx.stroke();
+            }
+
+            // Android's backgroundLetterPaint matches roughly to this logic:
+            // Math.min(w,h) * 0.7f => 350px
+            // Center X, Center Y (adjusted for baseline)
+            textCtx.font = "350px system-ui, sans-serif";
+            textCtx.fillStyle = "#E0E0E0"; // Same as Android app
+            textCtx.textAlign = "center";
+            textCtx.textBaseline = "middle";
+            
+            textCtx.fillText(letter, CANVAS_SIZE / 2, CANVAS_SIZE / 2);
+            clearNodes();
+        }
+
+        function clearNodes() {
+            nodes = [];
+            drawNodes();
+            updateOutput();
+        }
+
+        nodeCanvas.addEventListener('mousedown', (e) => {
+            const rect = nodeCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Normalize to [0, 1] range
+            const normX = x / CANVAS_SIZE;
+            const normY = y / CANVAS_SIZE;
+            
+            nodes.push({ normX, normY, rawX: x, rawY: y });
+            drawNodes();
+            updateOutput();
+        });
+
+        function drawNodes() {
+            nodeCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            // Draw lines connecting nodes
+            if (nodes.length > 1) {
+                nodeCtx.beginPath();
+                nodeCtx.moveTo(nodes[0].rawX, nodes[0].rawY);
+                for(let i=1; i<nodes.length; i++) {
+                    nodeCtx.lineTo(nodes[i].rawX, nodes[i].rawY);
+                }
+                nodeCtx.strokeStyle = "rgba(3, 218, 197, 0.5)"; // Teal
+                nodeCtx.lineWidth = 6;
+                nodeCtx.lineCap = "round";
+                nodeCtx.lineJoin = "round";
+                nodeCtx.stroke();
+            }
+
+            // Draw nodes
+            nodes.forEach((node, index) => {
+                nodeCtx.beginPath();
+                nodeCtx.arc(node.rawX, node.rawY, 8, 0, 2 * Math.PI);
+                nodeCtx.fillStyle = index === 0 ? "#4CAF50" : "#FF9800"; // First green, rest orange
+                nodeCtx.fill();
+                
+                // Draw numbers
+                nodeCtx.fillStyle = "black";
+                nodeCtx.font = "12px Arial";
+                nodeCtx.textAlign = "center";
+                nodeCtx.textBaseline = "middle";
+                nodeCtx.fillText(index + 1, node.rawX, node.rawY - 15);
+            });
+        }
+
+        function updateOutput() {
+            if (nodes.length === 0) {
+                output.value = "";
+                return;
+            }
+            
+            let code = `        TEMPLATES.put("${letterInput.value}", new float[][]{\n            `;
+            let lineItems = 0;
+            
+            nodes.forEach((node, index) => {
+                const xStr = node.normX.toFixed(2) + "f";
+                const yStr = node.normY.toFixed(2) + "f";
+                code += `{${xStr}, ${yStr}}`;
+                
+                if (index < nodes.length - 1) {
+                    code += ", ";
+                    lineItems++;
+                    if (lineItems >= 5) {
+                        code += "\n            ";
+                        lineItems = 0;
+                    }
+                }
+            });
+            code += "\n        });";
+            output.value = code;
+        }
+
+        // Init
+        renderLetter();
+    </script>
+</body>
+</html>

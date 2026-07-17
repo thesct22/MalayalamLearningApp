@@ -209,6 +209,7 @@ public class QuizFragment extends Fragment {
                             question.getWord().getPhonetic(),
                             false
                     );
+                    viewModel.nextQuestion();
                 }
                 break;
         }
