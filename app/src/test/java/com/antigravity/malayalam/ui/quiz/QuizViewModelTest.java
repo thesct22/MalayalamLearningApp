@@ -7,9 +7,11 @@ import androidx.test.core.app.ApplicationProvider;
 
 import com.antigravity.malayalam.service.ContentGenerator;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -35,15 +37,24 @@ public class QuizViewModelTest {
         viewModel = new QuizViewModel(application);
     }
 
+    @After
+    public void tearDown() {
+        if (viewModel != null) {
+            // Nullifying shuts down the old internal executor
+            viewModel.setContentGenerator(null);
+        }
+    }
+
     @Test
     public void testLoadBeginnerSentences() throws InterruptedException {
-        // Create a mock ContentGenerator that immediately returns results
-        ContentGenerator mockGenerator = new ContentGenerator() {
-            @Override
-            public void generateBeginnerSentences(ContentCallback callback) {
-                callback.onSuccess(Arrays.asList("Test1 - English1", "Test2 - English2"));
-            }
-        };
+        // Create a mock ContentGenerator that immediately returns results using Mockito
+        ContentGenerator mockGenerator = Mockito.mock(ContentGenerator.class);
+        Mockito.doAnswer(invocation -> {
+            ContentGenerator.ContentCallback callback = invocation.getArgument(0);
+            callback.onSuccess(Arrays.asList("Test1 - English1", "Test2 - English2"));
+            return null;
+        }).when(mockGenerator).generateBeginnerSentences(Mockito.any(ContentGenerator.ContentCallback.class));
+        
         viewModel.setContentGenerator(mockGenerator);
 
         final List<String>[] loadedSentences = new List[1];
