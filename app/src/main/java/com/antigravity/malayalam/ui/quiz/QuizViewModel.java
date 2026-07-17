@@ -25,7 +25,7 @@ public class QuizViewModel extends AndroidViewModel {
     private static final String TAG = "QuizViewModel";
     private final DataRepository repository;
     private final GeminiService geminiService;
-    private final com.antigravity.malayalam.service.ContentGenerator contentGenerator;
+    private com.antigravity.malayalam.service.ContentGenerator contentGenerator;
 
     private final List<QuizQuestion> questions = new ArrayList<>();
     private final MutableLiveData<Integer> currentQuestionIndex = new MutableLiveData<>(-1);
@@ -44,6 +44,22 @@ public class QuizViewModel extends AndroidViewModel {
         this.geminiService = GeminiService.getInstance();
         this.contentGenerator = new com.antigravity.malayalam.service.ContentGenerator();
         startNewQuiz();
+    }
+
+    @androidx.annotation.VisibleForTesting
+    public void setContentGenerator(com.antigravity.malayalam.service.ContentGenerator generator) {
+        if (this.contentGenerator != null) {
+            this.contentGenerator.shutdown();
+        }
+        this.contentGenerator = generator;
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        if (this.contentGenerator != null) {
+            this.contentGenerator.shutdown();
+        }
     }
 
     public LiveData<List<String>> getBeginnerSentences() { return beginnerSentences; }

@@ -96,4 +96,10 @@ public class ContentGenerator {
             }
         }, executor);
     }
+
+    public void shutdown() {
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
+    }
 }
