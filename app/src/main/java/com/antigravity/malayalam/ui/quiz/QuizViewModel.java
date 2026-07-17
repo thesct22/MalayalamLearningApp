@@ -25,9 +25,11 @@ public class QuizViewModel extends AndroidViewModel {
     private static final String TAG = "QuizViewModel";
     private final DataRepository repository;
     private final GeminiService geminiService;
+    private final com.antigravity.malayalam.service.ContentGenerator contentGenerator;
 
     private final List<QuizQuestion> questions = new ArrayList<>();
     private final MutableLiveData<Integer> currentQuestionIndex = new MutableLiveData<>(-1);
+    private final MutableLiveData<List<String>> beginnerSentences = new MutableLiveData<>();
     private final MutableLiveData<QuizQuestion> currentQuestion = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<Boolean> showFeedback = new MutableLiveData<>(false);
@@ -40,9 +42,11 @@ public class QuizViewModel extends AndroidViewModel {
         super(application);
         this.repository = new DataRepository(application);
         this.geminiService = GeminiService.getInstance();
+        this.contentGenerator = new com.antigravity.malayalam.service.ContentGenerator();
         startNewQuiz();
     }
 
+    public LiveData<List<String>> getBeginnerSentences() { return beginnerSentences; }
     public LiveData<QuizQuestion> getCurrentQuestion() { return currentQuestion; }
     public LiveData<Integer> getCurrentQuestionIndex() { return currentQuestionIndex; }
     public LiveData<Boolean> getIsLoading() { return isLoading; }
@@ -51,6 +55,20 @@ public class QuizViewModel extends AndroidViewModel {
     public LiveData<String> getFeedbackDetail() { return feedbackDetail; }
     public LiveData<Boolean> getIsQuizFinished() { return isQuizFinished; }
     public LiveData<Integer> getQuizProgress() { return quizProgress; }
+
+    public void loadBeginnerSentences() {
+        contentGenerator.generateBeginnerSentences(new com.antigravity.malayalam.service.ContentGenerator.ContentCallback() {
+            @Override
+            public void onSuccess(List<String> sentences) {
+                beginnerSentences.postValue(sentences);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                Log.e(TAG, "Failed to generate beginner sentences", throwable);
+            }
+        });
+    }
 
     public void startNewQuiz() {
         isLoading.setValue(true);
