@@ -9,6 +9,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -36,6 +38,15 @@ public class DrawFragment extends Fragment {
     private String targetLetter = "അ";
     private String targetMeaning = "Letter 'A'";
     private String targetPhonetic = "A";
+
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    startSpeechRecognition();
+                } else {
+                    Toast.makeText(getContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
+                }
+            });
 
     public static DrawFragment newInstance(String letter, String meaning, String phonetic) {
         DrawFragment fragment = new DrawFragment();
@@ -127,7 +138,7 @@ public class DrawFragment extends Fragment {
 
         binding.btnRecordSpeech.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+                requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
                 return;
             }
             startSpeechRecognition();
@@ -135,6 +146,11 @@ public class DrawFragment extends Fragment {
     }
 
     private void startSpeechRecognition() {
+        if (audioService == null || !audioService.isSpeechRecognitionAvailable()) {
+            Toast.makeText(getContext(), "Speech recognition is not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Toast.makeText(requireContext(), "Listening...", Toast.LENGTH_SHORT).show();
         audioService.startListening(new RecognitionListener() {
             @Override
@@ -154,18 +170,22 @@ public class DrawFragment extends Fragment {
 
             @Override
             public void onError(int error) {
-                Toast.makeText(requireContext(), "Error recognizing speech: " + error, Toast.LENGTH_SHORT).show();
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "Error recognizing speech: " + error, Toast.LENGTH_SHORT).show();
+                }
             }
 
             @Override
             public void onResults(Bundle results) {
+                if (getContext() == null) return;
+                
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
                     String result = matches.get(0);
                     if (result.contains(targetLetter)) {
-                        Toast.makeText(requireContext(), "Correct!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Correct!", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(requireContext(), "You said: " + result, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "You said: " + result, Toast.LENGTH_SHORT).show();
                     }
                 }
             }
@@ -176,18 +196,6 @@ public class DrawFragment extends Fragment {
             @Override
             public void onEvent(int eventType, Bundle params) {}
         });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startSpeechRecognition();
-            } else {
-                Toast.makeText(requireContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
-            }
-        }
     }
 
     private void showSuccessFeedback() {

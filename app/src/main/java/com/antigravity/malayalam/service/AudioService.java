@@ -46,6 +46,10 @@ public class AudioService {
     public boolean isReady() {
         return ttsReady;
     }
+
+    public boolean isSpeechRecognitionAvailable() {
+        return speechRecognizer != null;
+    }
     
     public void speak(String text) {
         if (ttsReady && tts != null) {
