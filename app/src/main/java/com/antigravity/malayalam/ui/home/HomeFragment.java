@@ -16,8 +16,10 @@ import com.antigravity.malayalam.R;
 import com.antigravity.malayalam.data.LanguageTrack;
 import com.antigravity.malayalam.data.VocabularyWord;
 import com.antigravity.malayalam.databinding.FragmentHomeBinding;
+import com.antigravity.malayalam.utils.GamificationEngine;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 /**
  * Fragment containing the landing page UI for learning track and stats.
@@ -43,6 +45,22 @@ public class HomeFragment extends Fragment {
         setupRecyclerView();
         setupListeners();
         observeViewModel();
+        setupGamification();
+    }
+
+    private void setupGamification() {
+        // Dummy data for task 1
+        int dummyXp = 150;
+        GamificationEngine engine = new GamificationEngine();
+        int level = engine.calculateLevel(dummyXp);
+        int streak = engine.calculateStreak(Collections.emptyList());
+
+        binding.tvXp.setText(String.valueOf(dummyXp));
+        binding.tvLevel.setText(String.valueOf(level));
+        binding.tvStreak.setText(String.valueOf(streak));
+        
+        int progress = (dummyXp % 100);
+        binding.progressLevel.setProgress(progress);
     }
 
     private void setupRecyclerView() {
