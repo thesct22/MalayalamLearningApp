@@ -52,12 +52,17 @@ public class DrawFragment extends Fragment {
     private static final String ARG_LETTER = "arg_letter";
     private static final String ARG_MEANING = "arg_meaning";
     private static final String ARG_PHONETIC = "arg_phonetic";
+    private static final String ARG_IS_SEQUENTIAL = "arg_is_sequential";
 
     private FragmentDrawBinding binding;
     private DrawViewModel viewModel;
     private AudioService audioService;
 
     private int currentLetterIndex = 0;
+    private boolean isSequential = false;
+    private String targetLetter = "അ";
+    private String targetMeaning = "Letter 'A'";
+    private String targetPhonetic = "A";
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -68,12 +73,13 @@ public class DrawFragment extends Fragment {
                 }
             });
 
-    public static DrawFragment newInstance(String letter, String meaning, String phonetic) {
+    public static DrawFragment newInstance(String letter, String meaning, String phonetic, boolean isSequential) {
         DrawFragment fragment = new DrawFragment();
         Bundle args = new Bundle();
         args.putString(ARG_LETTER, letter);
         args.putString(ARG_MEANING, meaning);
         args.putString(ARG_PHONETIC, phonetic);
+        args.putBoolean(ARG_IS_SEQUENTIAL, isSequential);
         fragment.setArguments(args);
         return fragment;
     }
@@ -82,11 +88,17 @@ public class DrawFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            String initialLetter = getArguments().getString(ARG_LETTER, "അ");
-            for (int i = 0; i < LETTERS.size(); i++) {
-                if (LETTERS.get(i).letter.equals(initialLetter)) {
-                    currentLetterIndex = i;
-                    break;
+            isSequential = getArguments().getBoolean(ARG_IS_SEQUENTIAL, false);
+            targetLetter = getArguments().getString(ARG_LETTER, "അ");
+            targetMeaning = getArguments().getString(ARG_MEANING, "Letter 'A'");
+            targetPhonetic = getArguments().getString(ARG_PHONETIC, "A");
+            
+            if (isSequential) {
+                for (int i = 0; i < LETTERS.size(); i++) {
+                    if (LETTERS.get(i).letter.equals(targetLetter)) {
+                        currentLetterIndex = i;
+                        break;
+                    }
                 }
             }
         }
@@ -110,11 +122,20 @@ public class DrawFragment extends Fragment {
     }
 
     private void setupUI() {
-        LetterData data = LETTERS.get(currentLetterIndex);
-        binding.tvDrawLetter.setText(data.letter);
-        binding.tvDrawMeaning.setText(data.meaning);
-        binding.tvDrawPhonetic.setText(data.phonetic);
-        binding.drawingCanvas.setLetter(data.letter);
+        if (isSequential) {
+            LetterData data = LETTERS.get(currentLetterIndex);
+            binding.tvDrawLetter.setText(data.letter);
+            binding.tvDrawMeaning.setText(data.meaning);
+            binding.tvDrawPhonetic.setText(data.phonetic);
+            binding.drawingCanvas.setLetter(data.letter);
+            binding.btnDrawNext.setText("Next");
+        } else {
+            binding.tvDrawLetter.setText(targetLetter);
+            binding.tvDrawMeaning.setText(targetMeaning);
+            binding.tvDrawPhonetic.setText(targetPhonetic);
+            binding.drawingCanvas.setLetter(targetLetter);
+            binding.btnDrawNext.setText("Done");
+        }
     }
 
     private void setupListeners() {
@@ -150,7 +171,7 @@ public class DrawFragment extends Fragment {
         });
 
         binding.btnDrawNext.setOnClickListener(v -> {
-            if (currentLetterIndex < LETTERS.size() - 1) {
+            if (isSequential && currentLetterIndex < LETTERS.size() - 1) {
                 currentLetterIndex++;
                 setupUI();
                 binding.drawingCanvas.clearCanvas();
@@ -165,7 +186,7 @@ public class DrawFragment extends Fragment {
 
         binding.btnSpeakLetter.setOnClickListener(v -> {
             if (audioService != null) {
-                audioService.speak(LETTERS.get(currentLetterIndex).letter);
+                audioService.speak(isSequential ? LETTERS.get(currentLetterIndex).letter : targetLetter);
             }
         });
 
@@ -215,7 +236,8 @@ public class DrawFragment extends Fragment {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
                     String result = matches.get(0);
-                    if (result.contains(LETTERS.get(currentLetterIndex).letter)) {
+                    String expected = isSequential ? LETTERS.get(currentLetterIndex).letter : targetLetter;
+                    if (result.contains(expected)) {
                         Toast.makeText(getContext(), "Correct!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(getContext(), "You said: " + result, Toast.LENGTH_SHORT).show();
@@ -233,7 +255,8 @@ public class DrawFragment extends Fragment {
 
     private void showSuccessFeedback() {
         binding.cardDrawFeedback.setVisibility(View.VISIBLE);
-        viewModel.saveTracingResult(LETTERS.get(currentLetterIndex).letter, true);
+        String letterToSave = isSequential ? LETTERS.get(currentLetterIndex).letter : targetLetter;
+        viewModel.saveTracingResult(letterToSave, true);
     }
 
     @Override

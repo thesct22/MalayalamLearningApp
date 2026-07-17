@@ -36,8 +36,8 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
     }
 
-    public void navigateToDraw(String letter, String meaning, String phonetic) {
-        DrawFragment fragment = DrawFragment.newInstance(letter, meaning, phonetic);
+    public void navigateToDraw(String letter, String meaning, String phonetic, boolean isSequential) {
+        DrawFragment fragment = DrawFragment.newInstance(letter, meaning, phonetic, isSequential);
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, fragment)
                 .addToBackStack(null)

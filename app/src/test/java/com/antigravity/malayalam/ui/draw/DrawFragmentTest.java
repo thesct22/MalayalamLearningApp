@@ -21,7 +21,7 @@ public class DrawFragmentTest {
     public void testFragmentLaunches() {
         FragmentScenario<DrawFragment> scenario = FragmentScenario.launchInContainer(
             DrawFragment.class,
-            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup").getArguments(),
+            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup", true).getArguments(),
             R.style.Theme_MalayalamLearningApp
         );
         scenario.onFragment(fragment -> {
@@ -34,7 +34,7 @@ public class DrawFragmentTest {
     public void testNextButtonNavigatesLetters() {
         FragmentScenario<DrawFragment> scenario = FragmentScenario.launchInContainer(
             DrawFragment.class,
-            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup").getArguments(),
+            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup", true).getArguments(),
             R.style.Theme_MalayalamLearningApp
         );
         

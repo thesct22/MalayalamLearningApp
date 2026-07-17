@@ -70,6 +70,12 @@ public class QuizFragment extends Fragment {
     }
 
     private void setupListeners() {
+        binding.btnCloseQuiz.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                getActivity().onBackPressed();
+            }
+        });
+
         binding.btnPlayAudio.setOnClickListener(v -> {
             QuizQuestion q = viewModel.getCurrentQuestion().getValue();
             if (q != null && ttsHelper != null) {
@@ -158,6 +164,7 @@ public class QuizFragment extends Fragment {
 
         binding.tvQuestionText.setVisibility(View.GONE);
         binding.tvTargetWord.setVisibility(View.GONE);
+        binding.tvTargetWordPhonetic.setVisibility(View.GONE);
         binding.btnPlayAudio.setVisibility(View.GONE);
         binding.layoutSpeakControls.setVisibility(View.GONE);
         binding.rvOptions.setVisibility(View.GONE);
@@ -168,6 +175,8 @@ public class QuizFragment extends Fragment {
                 binding.tvQuestionText.setText("Match the correct translation:");
                 binding.tvTargetWord.setVisibility(View.VISIBLE);
                 binding.tvTargetWord.setText(question.getWord().getMalayalamScript());
+                binding.tvTargetWordPhonetic.setVisibility(View.VISIBLE);
+                binding.tvTargetWordPhonetic.setText(question.getWord().getPhonetic());
                 binding.rvOptions.setVisibility(View.VISIBLE);
                 optionsAdapter.setOptions(question.getOptions());
                 break;
@@ -186,6 +195,8 @@ public class QuizFragment extends Fragment {
                 binding.tvQuestionText.setText("Speak this word aloud:");
                 binding.tvTargetWord.setVisibility(View.VISIBLE);
                 binding.tvTargetWord.setText(question.getWord().getMalayalamScript());
+                binding.tvTargetWordPhonetic.setVisibility(View.VISIBLE);
+                binding.tvTargetWordPhonetic.setText(question.getWord().getPhonetic());
                 binding.layoutSpeakControls.setVisibility(View.VISIBLE);
                 binding.tvSpeakHint.setText("Tap mic and speak now");
                 binding.fabRecord.setImageResource(android.R.drawable.presence_audio_online);
@@ -195,7 +206,8 @@ public class QuizFragment extends Fragment {
                     ((MainActivity) getActivity()).navigateToDraw(
                             question.getWord().getMalayalamScript(),
                             "Trace character " + question.getWord().getMalayalamScript(),
-                            question.getWord().getPhonetic()
+                            question.getWord().getPhonetic(),
+                            false
                     );
                 }
                 break;
