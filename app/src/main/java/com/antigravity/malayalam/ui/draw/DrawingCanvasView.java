@@ -20,6 +20,10 @@ import java.util.Map;
  */
 public class DrawingCanvasView extends View {
 
+    private DrawingCanvasViewModel viewModel = new DrawingCanvasViewModel();
+
+
+
     private Path drawPath;
     private Paint drawPaint;
     private Paint backgroundLetterPaint;
@@ -100,6 +104,10 @@ public class DrawingCanvasView extends View {
 
     public void setDrawingListener(DrawingListener listener) {
         this.listener = listener;
+    }
+
+    public void setViewModel(DrawingCanvasViewModel viewModel) {
+        this.viewModel = viewModel;
     }
 
     public void setLetter(String letter) {
@@ -195,10 +203,12 @@ public class DrawingCanvasView extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                if (viewModel != null) viewModel.addPoint(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
                 checkTouchPoint(touchX, touchY);
                 break;
             case MotionEvent.ACTION_MOVE:
+                if (viewModel != null) viewModel.addPoint(touchX, touchY);
                 drawPath.lineTo(touchX, touchY);
                 checkTouchPoint(touchX, touchY);
                 break;
@@ -233,6 +243,9 @@ public class DrawingCanvasView extends View {
     public void clearCanvas() {
         drawPath.reset();
         nextGuideIndex = 0;
+        if (viewModel != null) {
+            viewModel.clear();
+        }
         invalidate();
     }
 
