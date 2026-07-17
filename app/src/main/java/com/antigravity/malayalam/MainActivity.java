@@ -24,9 +24,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void navigateToHome() {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, new HomeFragment())
-                .commit();
+        getSupportFragmentManager().popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE);
     }
 
     public void navigateToQuiz() {
