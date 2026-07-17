@@ -9,4 +9,8 @@ public class DrawingCanvasViewModel {
     public void addPoint(float x, float y) { points.add(new PointF(x, y)); }
     public List<PointF> getPoints() { return points; }
     public void clear() { points.clear(); }
+    
+    public boolean isDrawn(int minPoints) {
+        return points.size() >= minPoints;
+    }
 }
