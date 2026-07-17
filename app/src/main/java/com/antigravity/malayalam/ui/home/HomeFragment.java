@@ -88,7 +88,8 @@ public class HomeFragment extends Fragment {
 
         binding.btnDrawPractice.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToDraw("അ", "Letter 'A'", "Pronounced like 'u' in cup");
+                com.antigravity.malayalam.ui.draw.DrawFragment.LetterData first = com.antigravity.malayalam.ui.draw.DrawFragment.LETTERS.get(0);
+                ((MainActivity) getActivity()).navigateToDraw(first.letter, first.meaning, first.phonetic);
             }
         });
 

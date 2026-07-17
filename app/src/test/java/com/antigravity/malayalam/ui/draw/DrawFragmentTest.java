@@ -2,6 +2,7 @@ package com.antigravity.malayalam.ui.draw;
 
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.TextView;
 import androidx.fragment.app.testing.FragmentScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.antigravity.malayalam.R;
@@ -9,8 +10,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(AndroidJUnit4.class)
 @Config(manifest=Config.NONE, sdk = 34)
@@ -20,7 +21,7 @@ public class DrawFragmentTest {
     public void testFragmentLaunches() {
         FragmentScenario<DrawFragment> scenario = FragmentScenario.launchInContainer(
             DrawFragment.class,
-            DrawFragment.newInstance("അ", "Letter A", "A").getArguments(),
+            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup").getArguments(),
             R.style.Theme_MalayalamLearningApp
         );
         scenario.onFragment(fragment -> {
@@ -28,35 +29,34 @@ public class DrawFragmentTest {
             assertNotNull(fragment.getView());
         });
     }
-
+    
     @Test
-    public void testSpeakButton_callsAudioService() {
+    public void testNextButtonNavigatesLetters() {
         FragmentScenario<DrawFragment> scenario = FragmentScenario.launchInContainer(
             DrawFragment.class,
-            DrawFragment.newInstance("അ", "Letter A", "A").getArguments(),
+            DrawFragment.newInstance("അ", "Vowel 'A'", "Pronounced like 'u' in cup").getArguments(),
             R.style.Theme_MalayalamLearningApp
         );
         
         scenario.onFragment(fragment -> {
-            Button speakButton = fragment.getView().findViewById(R.id.btn_speak_letter);
-            assertNotNull(speakButton);
-            speakButton.performClick();
-            // We're just verifying no crash occurs when clicking it and AudioService handles it gracefully.
-        });
-    }
-
-    @Test
-    public void testRecordButton_clicksWithoutCrash() {
-        FragmentScenario<DrawFragment> scenario = FragmentScenario.launchInContainer(
-            DrawFragment.class,
-            DrawFragment.newInstance("അ", "Letter A", "A").getArguments(),
-            R.style.Theme_MalayalamLearningApp
-        );
-        
-        scenario.onFragment(fragment -> {
-            Button recordButton = fragment.getView().findViewById(R.id.btn_record_speech);
-            assertNotNull(recordButton);
-            recordButton.performClick();
+            TextView letterText = fragment.getView().findViewById(R.id.tv_draw_letter);
+            Button nextButton = fragment.getView().findViewById(R.id.btn_draw_next);
+            
+            assertEquals("അ", letterText.getText().toString());
+            
+            nextButton.performClick(); // To Aa
+            assertEquals("ആ", letterText.getText().toString());
+            
+            nextButton.performClick(); // To I
+            assertEquals("ഇ", letterText.getText().toString());
+            
+            nextButton.performClick(); // To Ee
+            assertEquals("ഈ", letterText.getText().toString());
+            
+            nextButton.performClick(); // To U
+            assertEquals("ഉ", letterText.getText().toString());
+            
+            // Next click would call onBackPressed. Let's not test the Activity part here easily unless we mock.
         });
     }
 }

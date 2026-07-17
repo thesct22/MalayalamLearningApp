@@ -20,11 +20,33 @@ import com.antigravity.malayalam.MainActivity;
 import com.antigravity.malayalam.databinding.FragmentDrawBinding;
 import com.antigravity.malayalam.service.AudioService;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tracing practice Fragment. Connects with DrawingCanvasView.
  */
 public class DrawFragment extends Fragment {
+
+    public static class LetterData {
+        public final String letter;
+        public final String meaning;
+        public final String phonetic;
+
+        public LetterData(String letter, String meaning, String phonetic) {
+            this.letter = letter;
+            this.meaning = meaning;
+            this.phonetic = phonetic;
+        }
+    }
+
+    public static final List<LetterData> LETTERS = Arrays.asList(
+            new LetterData("അ", "Vowel 'A'", "Pronounced like 'u' in cup"),
+            new LetterData("ആ", "Vowel 'Aa'", "Pronounced like 'a' in father"),
+            new LetterData("ഇ", "Vowel 'I'", "Pronounced like 'i' in hit"),
+            new LetterData("ഈ", "Vowel 'Ee'", "Pronounced like 'ee' in see"),
+            new LetterData("ഉ", "Vowel 'U'", "Pronounced like 'u' in put")
+    );
 
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private static final String ARG_LETTER = "arg_letter";
@@ -35,9 +57,7 @@ public class DrawFragment extends Fragment {
     private DrawViewModel viewModel;
     private AudioService audioService;
 
-    private String targetLetter = "അ";
-    private String targetMeaning = "Letter 'A'";
-    private String targetPhonetic = "A";
+    private int currentLetterIndex = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -62,9 +82,13 @@ public class DrawFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            targetLetter = getArguments().getString(ARG_LETTER, "അ");
-            targetMeaning = getArguments().getString(ARG_MEANING, "Letter 'A'");
-            targetPhonetic = getArguments().getString(ARG_PHONETIC, "A");
+            String initialLetter = getArguments().getString(ARG_LETTER, "അ");
+            for (int i = 0; i < LETTERS.size(); i++) {
+                if (LETTERS.get(i).letter.equals(initialLetter)) {
+                    currentLetterIndex = i;
+                    break;
+                }
+            }
         }
     }
 
@@ -86,10 +110,11 @@ public class DrawFragment extends Fragment {
     }
 
     private void setupUI() {
-        binding.tvDrawLetter.setText(targetLetter);
-        binding.tvDrawMeaning.setText(targetMeaning);
-        binding.tvDrawPhonetic.setText(targetPhonetic);
-        binding.drawingCanvas.setLetter(targetLetter);
+        LetterData data = LETTERS.get(currentLetterIndex);
+        binding.tvDrawLetter.setText(data.letter);
+        binding.tvDrawMeaning.setText(data.meaning);
+        binding.tvDrawPhonetic.setText(data.phonetic);
+        binding.drawingCanvas.setLetter(data.letter);
     }
 
     private void setupListeners() {
@@ -125,14 +150,22 @@ public class DrawFragment extends Fragment {
         });
 
         binding.btnDrawNext.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                getActivity().onBackPressed();
+            if (currentLetterIndex < LETTERS.size() - 1) {
+                currentLetterIndex++;
+                setupUI();
+                binding.drawingCanvas.clearCanvas();
+                binding.cardDrawFeedback.setVisibility(View.GONE);
+                binding.tvDrawSubtitle.setText("Follow the numbered guide points in order");
+            } else {
+                if (getActivity() instanceof MainActivity) {
+                    getActivity().onBackPressed();
+                }
             }
         });
 
         binding.btnSpeakLetter.setOnClickListener(v -> {
             if (audioService != null) {
-                audioService.speak(targetLetter);
+                audioService.speak(LETTERS.get(currentLetterIndex).letter);
             }
         });
 
@@ -182,7 +215,7 @@ public class DrawFragment extends Fragment {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
                     String result = matches.get(0);
-                    if (result.contains(targetLetter)) {
+                    if (result.contains(LETTERS.get(currentLetterIndex).letter)) {
                         Toast.makeText(getContext(), "Correct!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(getContext(), "You said: " + result, Toast.LENGTH_SHORT).show();
@@ -200,7 +233,7 @@ public class DrawFragment extends Fragment {
 
     private void showSuccessFeedback() {
         binding.cardDrawFeedback.setVisibility(View.VISIBLE);
-        viewModel.saveTracingResult(targetLetter, true);
+        viewModel.saveTracingResult(LETTERS.get(currentLetterIndex).letter, true);
     }
 
     @Override
